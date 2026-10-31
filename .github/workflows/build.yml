@@ -1055,6 +1055,10 @@ jobs:
           enable_config_if_defined CONFIG_TMPFS_XATTR
           enable_config_if_defined CONFIG_MACVLAN
 
+          # --- 实验性（kABI 破坏）: --cpus / --pids-limit 需要的两项 ---
+          enable_config CONFIG_CFS_BANDWIDTH
+          enable_config CONFIG_CGROUP_PIDS
+
           echo "校验 Droidspaces 必需项..."
           MISS=0
           for C in CONFIG_SYSVIPC CONFIG_POSIX_MQUEUE CONFIG_IPC_NS CONFIG_PID_NS CONFIG_DEVTMPFS CONFIG_USER_NS CONFIG_NAMESPACES CONFIG_CGROUPS; do
