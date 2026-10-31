@@ -996,6 +996,15 @@ jobs:
           enable_config_if_defined CONFIG_NETFILTER_XT_TARGET_REJECT
           enable_config_if_defined CONFIG_IP_NF_TARGET_REJECT
 
+          # --- 补全 Droidspaces 运行时 ---
+          # 以下均取自官方 Kernel-Configuration.md，且在 5.15 GKI 树上不影响导出符号 CRC：
+          # IPv6 NAT（NAT66）、tmpfs 的 xattr/POSIX ACL（NixOS 等需要）、Macvlan
+          enable_config_if_defined CONFIG_IP6_NF_NAT
+          enable_config_if_defined CONFIG_IP6_NF_TARGET_MASQUERADE
+          enable_config_if_defined CONFIG_TMPFS_POSIX_ACL
+          enable_config_if_defined CONFIG_TMPFS_XATTR
+          enable_config_if_defined CONFIG_MACVLAN
+
           echo "Droidspaces 集成完成"
 
           echo "GKI6.6 普通用户联网专用配置 (Droidspaces)"
