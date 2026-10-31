@@ -78,6 +78,11 @@ on:
         description: "自定义版本名 (可选)"
         required: false
         type: string
+      device_config:
+        description: "导入本机内核配置用于校验与补全 (URL 或仓库内路径，支持 /proc/config.gz)"
+        required: false
+        type: string
+        default: ""
       build_time:
         description: "自定义构建时间 (留空或填 N = 当前UTC+3h)"
         required: false
@@ -249,6 +254,7 @@ jobs:
       revision: "r1"
       ksu_variant: ${{ inputs.kernelsu_variant }}
       version: ${{ inputs.version || '' }}
+      device_config: ${{ inputs.device_config || '' }}
       build_time: ${{ needs.resolve-version.outputs.build_time }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}

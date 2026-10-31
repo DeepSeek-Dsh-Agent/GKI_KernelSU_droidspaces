@@ -96,6 +96,10 @@ on:
         required: false
         type: boolean
         default: false
+      device_config:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build-kernel:
@@ -885,6 +889,52 @@ jobs:
       - name: 备份基准 defconfig
         run: cp "$DEFCONFIG" "$DEFCONFIG.orig"
 
+      - name: 导入并校验本机内核配置
+        if: inputs.device_config != ''
+        run: |
+          set -euo pipefail
+          SRC="${{ inputs.device_config }}"
+          TMP=/tmp/device-config
+          case "$SRC" in
+            http://*|https://*)
+              echo "下载本机配置: $SRC"
+              curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors --connect-timeout 30 -o "$TMP.raw" "$SRC"
+              ;;
+            *)
+              echo "读取仓库内配置: $SRC"
+              cp "$GITHUB_WORKSPACE/$SRC" "$TMP.raw"
+              ;;
+          esac
+
+          if [ "$(head -c 2 "$TMP.raw" | od -An -tx1 | tr -d ' \n')" = "1f8b" ]; then
+            echo "检测到 gzip (/proc/config.gz)，先解压"
+            gzip -dc "$TMP.raw" > "$TMP"
+          else
+            cp "$TMP.raw" "$TMP"
+          fi
+
+          total=$(grep -c '^CONFIG_' "$TMP" || true)
+          echo "导入配置条目数: $total"
+          if [ "${total:-0}" -lt 2000 ]; then
+            echo "::error::导入的配置不像完整内核配置（CONFIG_ 只有 $total 条，至少 2000）"
+            exit 1
+          fi
+          if ! grep -q '^CONFIG_ARM64=y' "$TMP"; then
+            echo "::error::导入的配置不是 arm64 内核配置"
+            exit 1
+          fi
+
+          LV=$(grep -m1 '^CONFIG_LOCALVERSION=' "$TMP" || true)
+          echo "CONFIG_LOCALVERSION=${LV#CONFIG_LOCALVERSION=}"
+          case "$LV" in
+            *${{ inputs.android_version }}*) echo "版本标识匹配: ${{ inputs.android_version }}" ;;
+            *) echo "::warning::导入配置里没看到 ${{ inputs.android_version }} 标识，请确认版本对应" ;;
+          esac
+
+          cp "$DEFCONFIG" "$DEFCONFIG.imported-backup"
+          cp "$TMP" "$DEFCONFIG"
+          echo "已用本机配置替换构建基准 defconfig（原文件备份为 $DEFCONFIG.imported-backup）"
+
       - name: 集成 NoMount 挂载元模块
         if: inputs.use_nomount
         working-directory: ${{ env.KERNEL_ROOT }}/common
@@ -1004,6 +1054,22 @@ jobs:
           enable_config_if_defined CONFIG_TMPFS_POSIX_ACL
           enable_config_if_defined CONFIG_TMPFS_XATTR
           enable_config_if_defined CONFIG_MACVLAN
+
+          echo "校验 Droidspaces 必需项..."
+          MISS=0
+          for C in CONFIG_SYSVIPC CONFIG_POSIX_MQUEUE CONFIG_IPC_NS CONFIG_PID_NS CONFIG_DEVTMPFS CONFIG_USER_NS CONFIG_NAMESPACES CONFIG_CGROUPS; do
+            if grep -q "^${C}=y" "$DEFCONFIG" 2>/dev/null; then
+              echo "  [OK]   $C"
+            else
+              echo "  [MISS] $C"
+              MISS=$((MISS+1))
+            fi
+          done
+          if [ "$MISS" -gt 0 ]; then
+            echo "::error::有 $MISS 项必需配置未能补全，构建会起不来"
+            exit 1
+          fi
+          echo "必需项校验通过"
 
           echo "Droidspaces 集成完成"
 
