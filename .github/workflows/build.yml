@@ -96,6 +96,10 @@ on:
         required: false
         type: boolean
         default: false
+      device_config:
+        required: false
+        type: string
+        default: ""
 
 jobs:
   build-kernel:
@@ -883,6 +887,42 @@ jobs:
       - name: 备份基准 defconfig
         run: cp "$DEFCONFIG" "$DEFCONFIG.orig"
 
+      - name: 导入并校验本机内核配置
+        if: inputs.device_config != ''
+        run: |
+          set -euo pipefail
+          SRC="${{ inputs.device_config }}"
+          TMP=/tmp/device-config
+          case "$SRC" in
+            http://*|https://*)
+              echo "下载本机配置: $SRC"
+              curl -fsSL --retry 5 --retry-delay 3 --retry-all-errors --connect-timeout 30 -o "$TMP.raw" "$SRC"
+              ;;
+            *)
+              echo "读取仓库内配置: $SRC"
+              cp "$GITHUB_WORKSPACE/$SRC" "$TMP.raw"
+              ;;
+          esac
+          if [ "$(head -c 2 "$TMP.raw" | od -An -tx1 | tr -d ' \n')" = "1f8b" ]; then
+            echo "检测到 gzip，先解压"
+            gzip -dc "$TMP.raw" > "$TMP"
+          else
+            cp "$TMP.raw" "$TMP"
+          fi
+          total=$(grep -c '^CONFIG_' "$TMP" || true)
+          echo "导入配置条目数: $total"
+          if [ "${total:-0}" -lt 2000 ]; then
+            echo "::error::导入的配置不像完整内核配置（CONFIG_ 只有 $total 条）"
+            exit 1
+          fi
+          if ! grep -q '^CONFIG_ARM64=y' "$TMP"; then
+            echo "::error::导入的配置不是 arm64 内核配置"
+            exit 1
+          fi
+          cp "$DEFCONFIG" "$DEFCONFIG.imported-backup"
+          cp "$TMP" "$DEFCONFIG"
+          echo "已用本机配置替换构建基准 defconfig"
+
       - name: 集成 NoMount 挂载元模块
         if: inputs.use_nomount
         working-directory: ${{ env.KERNEL_ROOT }}/common
@@ -1012,6 +1052,29 @@ jobs:
           # REJECT 目标在不同内核版本上的符号名可能不同，按实际存在的配置启用
           enable_config_if_defined CONFIG_NETFILTER_XT_TARGET_REJECT
           enable_config_if_defined CONFIG_IP_NF_TARGET_REJECT
+
+          # --- 补全 Droidspaces 运行时（官方 Kernel-Configuration.md 中 kABI 安全的项）---
+          enable_config_if_defined CONFIG_IP6_NF_NAT
+          enable_config_if_defined CONFIG_IP6_NF_TARGET_MASQUERADE
+          enable_config_if_defined CONFIG_TMPFS_POSIX_ACL
+          enable_config_if_defined CONFIG_TMPFS_XATTR
+          enable_config_if_defined CONFIG_MACVLAN
+
+          echo "校验 Droidspaces 必需项..."
+          MISS=0
+          for CFG in CONFIG_SYSVIPC CONFIG_POSIX_MQUEUE CONFIG_IPC_NS CONFIG_PID_NS CONFIG_DEVTMPFS CONFIG_USER_NS CONFIG_NAMESPACES CONFIG_CGROUPS; do
+            if grep -q "^${CFG}=y" "$DEFCONFIG" 2>/dev/null; then
+              echo "  [OK]   $CFG"
+            else
+              echo "  [MISS] $CFG"
+              MISS=$((MISS+1))
+            fi
+          done
+          if [ "$MISS" -gt 0 ]; then
+            echo "::error::有 $MISS 项必需配置未能补全"
+            exit 1
+          fi
+          echo "必需项校验通过"
 
           echo "Droidspaces 集成完成"
 

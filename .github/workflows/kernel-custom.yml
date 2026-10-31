@@ -83,6 +83,11 @@ on:
         required: false
         type: string
         default: "Sun Dec 01 08:10:00 UTC 2024"
+      device_config:
+        description: "导入本机内核配置用于校验与补全 (URL 或仓库内路径，支持 /proc/config.gz)"
+        required: false
+        type: string
+        default: ""
 
       # ==================== 开关（默认关闭） ====================
       use_zram:
@@ -214,6 +219,7 @@ jobs:
       revision: "r1"
       ksu_variant: ${{ inputs.kernelsu_variant }}
       version: ${{ inputs.version || '' }}
+      device_config: ${{ inputs.device_config || '' }}
       build_time: ${{ inputs.build_time || '' }}
       use_zram: ${{ inputs.use_zram }}
       use_bbg: ${{ inputs.use_bbg }}
