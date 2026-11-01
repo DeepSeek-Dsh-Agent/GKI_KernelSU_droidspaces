@@ -427,6 +427,9 @@ jobs:
           echo "TAG_FALLBACK=$TAG_FALLBACK" >> $GITHUB_ENV
 
       - name: 应用 Stock Config 伪装
+        # 容器构建保留真实 /proc/config.gz，供 droidspaces / tsu check-config 校验；
+        # 只有非容器构建才做 stock 伪装（隐藏 KSU/SUSFS 配置）。
+        if: inputs.droidspaces == 'off'
         run: |
           KVER="${{ inputs.kernel_version }}"
           STOCK_DST="$KERNEL_ROOT/common/arch/arm64/configs/stock_defconfig"
