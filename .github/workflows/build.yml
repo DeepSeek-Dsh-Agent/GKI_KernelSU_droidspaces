@@ -1055,6 +1055,21 @@ jobs:
           enable_config_if_defined CONFIG_TMPFS_XATTR
           enable_config_if_defined CONFIG_MACVLAN
 
+          # --- 容器运行时补全（kABI 安全，Docker check-config 缺项）---
+          enable_config_if_defined CONFIG_CGROUP_DEVICE
+          enable_config_if_defined CONFIG_BLK_DEV_THROTTLING
+          enable_config_if_defined CONFIG_BRIDGE_NETFILTER
+          enable_config_if_defined CONFIG_BRIDGE_VLAN_FILTERING
+          enable_config_if_defined CONFIG_VXLAN
+          enable_config_if_defined CONFIG_IPVLAN
+
+          # --- 实验性（破 GKI kABI，默认不开）---
+          # CFS_BANDWIDTH / CGROUP_PIDS 会改动 sched 与 cgroup 结构，CRC 变化会让原厂模块拒绝加载。
+          # 官方 Droidspaces 文档: 无补丁覆盖，必须整套重编模块并同刷 vendor_boot/vendor_dlkm/system_dlkm。
+          # 需要 --cpus / --pids-limit 时再在单独分支开启。
+          # enable_config CONFIG_CFS_BANDWIDTH
+          # enable_config CONFIG_CGROUP_PIDS
+
           echo "校验 Droidspaces 必需项..."
           MISS=0
           for C in CONFIG_SYSVIPC CONFIG_POSIX_MQUEUE CONFIG_IPC_NS CONFIG_PID_NS CONFIG_DEVTMPFS CONFIG_USER_NS CONFIG_NAMESPACES CONFIG_CGROUPS; do
