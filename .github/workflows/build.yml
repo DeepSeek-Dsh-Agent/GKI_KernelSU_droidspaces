@@ -1059,6 +1059,14 @@ jobs:
           enable_config CONFIG_CFS_BANDWIDTH
           enable_config CONFIG_CGROUP_PIDS
 
+          # --- 容器运行时补全：设备/IO/网络（Docker check-config 缺项，5.15 均存在）---
+          enable_config_if_defined CONFIG_CGROUP_DEVICE
+          enable_config_if_defined CONFIG_BLK_DEV_THROTTLING
+          enable_config_if_defined CONFIG_BRIDGE_NETFILTER
+          enable_config_if_defined CONFIG_BRIDGE_VLAN_FILTERING
+          enable_config_if_defined CONFIG_VXLAN
+          enable_config_if_defined CONFIG_IPVLAN
+
           echo "校验 Droidspaces 必需项..."
           MISS=0
           for C in CONFIG_SYSVIPC CONFIG_POSIX_MQUEUE CONFIG_IPC_NS CONFIG_PID_NS CONFIG_DEVTMPFS CONFIG_USER_NS CONFIG_NAMESPACES CONFIG_CGROUPS; do
