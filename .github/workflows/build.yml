@@ -427,6 +427,9 @@ jobs:
           echo "TAG_FALLBACK=$TAG_FALLBACK" >> $GITHUB_ENV
 
       - name: 应用 Stock Config 伪装
+        # 容器构建（droidspaces）保留真实 /proc/config.gz：伪装配置会让
+        # droidspaces check / 容器运行时读到错误的特性信息，宁可放弃 VINTF 伪装
+        if: inputs.droidspaces == 'off'
         run: |
           KVER="${{ inputs.kernel_version }}"
           STOCK_DST="$KERNEL_ROOT/common/arch/arm64/configs/stock_defconfig"
