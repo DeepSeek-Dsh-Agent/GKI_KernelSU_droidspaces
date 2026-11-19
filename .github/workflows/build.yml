@@ -1277,7 +1277,7 @@ jobs:
           echo "CONFIG_BBG=y" >> common/arch/arm64/configs/gki_defconfig
           sed -i '/^config LSM$/,/^help$/{ /^[[:space:]]*default/ { /baseband_guard/! s/selinux/selinux,baseband_guard/ } }' common/security/Kconfig
 
-      - name: 应用网络增强（BBRv3 / IPSet / Qdisc / CIFS）
+      - name: 应用网络增强（BBRv3 / IPSet / Qdisc / CIFS / 网络栈补全）
         if: inputs.use_networking
         working-directory: ${{ env.KERNEL_ROOT }}/common
         run: |
@@ -1361,6 +1361,19 @@ jobs:
 
           for cfg in NET_SCH_FQ NET_SCH_FQ_CODEL NET_SCH_CAKE NET_ACT_CONNMARK \
             IP_NF_TARGET_TTL IP6_NF_TARGET_HL IP6_NF_MATCH_HL WIREGUARD; do
+            set_config "CONFIG_$cfg" y
+          done
+
+          # 网络栈补全：容器/桥接/VPN/nftables/xtables/QoS（均为 kABI 安全项）
+          for cfg in BRIDGE_NETFILTER BRIDGE_VLAN_FILTERING VXLAN MACVLAN IPVLAN VETH TUN \
+            NF_TABLES NF_TABLES_INET NFT_CT NFT_NAT NFT_MASQ NFT_REDIRECT NFT_LOG NFT_LIMIT \
+            NFT_COUNTER NFT_REJECT NFT_COMPAT NFT_FIB_INET NFT_SOCKET NFT_TPROXY \
+            NETFILTER_XT_MATCH_CONNTRACK NETFILTER_XT_TARGET_REDIRECT NETFILTER_XT_MATCH_SOCKET \
+            NETFILTER_XT_MATCH_PHYSDEV NETFILTER_XT_MATCH_POLICY \
+            IP_NF_MANGLE IP6_NF_MANGLE IP_NF_NAT IP6_NF_NAT \
+            IP_NF_TARGET_MASQUERADE IP6_NF_TARGET_MASQUERADE \
+            NET_SCH_CAKE NET_SCH_HTB NET_SCH_HFSC NET_SCH_INGRESS \
+            NET_CLS_ACT NET_CLS_FW NET_CLS_U32; do
             set_config "CONFIG_$cfg" y
           done
 
