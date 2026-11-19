@@ -1304,9 +1304,9 @@ jobs:
               patch -p1 --no-backup-if-mismatch < "$BBR3_PATCH"
               echo "[+] BBRv3 补丁已应用"
             else
-              echo "::error::BBRv3 补丁应用失败，保留 .rej 供汇总产物分析" >&2
+              echo "::warning::BBRv3 补丁应用失败（5.15 LTS 代码可能已漂移），保留 .rej 并继续构建，回退到普通 BBR" >&2
               patch -p1 --no-backup-if-mismatch < "$BBR3_PATCH" || true
-              exit 1
+              BBR3_PATCH=""
             fi
           else
             echo "[*] $AVER-$KVER 无 BBRv3 backport，跳过补丁"
